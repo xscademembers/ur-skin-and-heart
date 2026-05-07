@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UR Skin & Heart Clinic</title>
+  <link rel="icon" type="image/png"
+    href="https://storage.googleapis.com/clientmedia/Ur%20skin%20and%20Heart/ur%20logo.png" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap"
+    rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              beige: '#EDE8D0',
+              blue: '#003764',
+              blue: '#003764',
+              blueLight: '#004b87',
+              gold: '#AC863B', // New Primary
+              darkBlue: '#023763', // New Secondary
+              surface: '#F9F8F4',
+              cardio: '#F0F9FF', // Sky 50
+              cardioSurface: '#E0F2FE', // Sky 100
+              cardioHighlight: '#0EA5E9', // Sky 500
+            }
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            body: ['Inter', 'sans-serif'],
+          },
+          boxShadow: {
+            'soft': '0 10px 30px -10px rgba(0, 55, 100, 0.05)',
+            'hover': '0 20px 40px rgba(0, 55, 100, 0.08)',
+            'glow': '0 0 20px rgba(14, 165, 233, 0.15)', // Blue glow for cardio
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      /* Default background, overridden by pages */
+      background-color: #EDE8D0;
+      color: #003764;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Custom scrollbar for webkit */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #EDE8D0;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #D1CBB3;
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #003764;
+    }
+  </style>
+  <script type="importmap">
+{
+  "imports": {
+    "lucide-react": "https://esm.sh/lucide-react@^0.561.0",
+    "framer-motion": "https://esm.sh/framer-motion@^12.23.26",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react-router-dom": "https://esm.sh/react-router-dom@^7.10.1"
+  }
+}
+</script>
+  <link rel="stylesheet" href="/index.css">
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+
+</html>
