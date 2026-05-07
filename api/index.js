@@ -1,3 +1,4 @@
+import dns from 'node:dns';
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
@@ -5,6 +6,13 @@ import multer from 'multer';
 import { Contact } from '../server/models/Contact.js';
 import { Blog } from '../server/models/Blog.js';
 import { Gallery } from '../server/models/Gallery.js';
+
+// Prefer IPv4 for DNS (helps some serverless / dual-stack environments)
+try {
+    dns.setDefaultResultOrder?.('ipv4first');
+} catch {
+    /* ignore */
+}
 
 const app = express();
 
@@ -36,15 +44,45 @@ const uploadMemory = multer({
     },
 });
 
+function normalizeMongoUri(raw) {
+    if (!raw || typeof raw !== 'string') return '';
+    let u = raw.trim();
+    if ((u.startsWith('"') && u.endsWith('"')) || (u.startsWith("'") && u.endsWith("'"))) {
+        u = u.slice(1, -1).trim();
+    }
+    return u;
+}
+
+function mongoConnectUserMessage(err) {
+    const msg = err?.message || String(err);
+    if (/querySrv|ENOTFOUND|getaddrinfo/i.test(msg)) {
+        return (
+            `${msg} ` +
+            'Atlas host not found (DNS). In Vercel → Settings → Environment Variables, set MONGODB_URI to the exact connection string from MongoDB Atlas (Database → Connect → Drivers). ' +
+            'Check every character in the *.mongodb.net hostname—a typo in the random id (e.g. …06dy… vs …06dyi…) causes this. ' +
+            'If SRV keeps failing, use the "Standard connection string" (mongodb://…) from the same Connect screen.'
+        );
+    }
+    if (/bad auth|authentication failed|SCRAM/i.test(msg)) {
+        return `${msg} Check the database username and password in MONGODB_URI (Atlas → Database Access).`;
+    }
+    return msg;
+}
+
 async function connectToDatabase() {
     if (mongoose.connection.readyState === 1) return;
-    const uri = process.env.MONGODB_URI;
+    const uri = normalizeMongoUri(process.env.MONGODB_URI);
     if (!uri) {
         throw new Error('Missing MONGODB_URI in environment');
     }
-    await mongoose.connect(uri, {
-        serverSelectionTimeoutMS: 12000,
-    });
+    try {
+        await mongoose.connect(uri, {
+            serverSelectionTimeoutMS: 15000,
+            family: 4,
+        });
+    } catch (e) {
+        throw new Error(mongoConnectUserMessage(e));
+    }
 }
 
 app.get('/api/health', async (_req, res) => {
@@ -80,19 +118,55 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
+const ALLOWED_CONTACT_SOURCES = new Set(['Contact Page', 'Cardiology', 'Dermatology', 'General']);
+
+function coerceContactPayload(body) {
+    const name = typeof body?.name === 'string' ? body.name.trim() : '';
+    const phone = typeof body?.phone === 'string' ? body.phone.trim() : '';
+    const rawEmail = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
+    const email = rawEmail || undefined;
+    const subject = typeof body?.subject === 'string' ? body.subject.trim() : undefined;
+    const message = typeof body?.message === 'string' ? body.message.trim() : undefined;
+    let source = typeof body?.source === 'string' ? body.source.trim() : 'General';
+    if (!ALLOWED_CONTACT_SOURCES.has(source)) source = 'General';
+
+    let preferredDate;
+    const pd = body?.preferredDate;
+    if (pd != null && pd !== '') {
+        const d = pd instanceof Date ? pd : new Date(pd);
+        if (!Number.isNaN(d.getTime())) preferredDate = d;
+    }
+
+    return { name, phone, email, subject, message, preferredDate, source };
+}
+
+function isMongoUnavailableError(msg) {
+    return /Missing MONGODB_URI|ENOTFOUND|querySrv|Server selection timed out|MongooseServerSelectionError|Atlas host not found/i.test(
+        String(msg || '')
+    );
+}
+
 app.post('/api/contacts', async (req, res) => {
     try {
         await connectToDatabase();
-        const { name, phone } = req.body || {};
-        if (!name || !phone) {
+        const payload = coerceContactPayload(req.body);
+        if (!payload.name || !payload.phone) {
             return res.status(400).json({ success: false, message: 'Name and phone are required' });
         }
-        const newContact = new Contact(req.body);
+        const newContact = new Contact(payload);
         const savedContact = await newContact.save();
         res.status(201).json({ success: true, message: 'Contact saved successfully', data: savedContact });
     } catch (error) {
         console.error('Save Error:', error);
-        res.status(500).json({ success: false, message: 'Server Error', error: error.message });
+        if (error.name === 'ValidationError') {
+            const msg = Object.values(error.errors || {})
+                .map((e) => e.message)
+                .join('; ');
+            return res.status(400).json({ success: false, message: msg || 'Validation failed' });
+        }
+        const rawMsg = error.message || 'Server Error';
+        const status = isMongoUnavailableError(rawMsg) ? 503 : 500;
+        res.status(status).json({ success: false, message: rawMsg });
     }
 });
 

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '../ui/Button';
 import { Calendar, Check, Phone, Mail, Clock, ShieldCheck, MapPin, ChevronDown, ExternalLink } from 'lucide-react';
 import { Department } from '../../types';
+import { contactSubmitUserMessage } from '../../contactSubmitMessage';
 
 interface ContactFormProps {
   department: Department;
@@ -12,6 +13,7 @@ interface ContactFormProps {
 
 export const ContactForm: React.FC<ContactFormProps> = ({ department, options, optionsLabel }) => {
   const [formState, setFormState] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+  const [submitError, setSubmitError] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -32,6 +34,32 @@ export const ContactForm: React.FC<ContactFormProps> = ({ department, options, o
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormState('submitting');
+    setSubmitError('');
+
+    let preferredDate: string | undefined;
+    if (formData.date) {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(formData.date);
+      if (m) {
+        const y = Number(m[1]);
+        const mo = Number(m[2]);
+        const d = Number(m[3]);
+        const dt = new Date(y, mo - 1, d, 12, 0, 0);
+        if (!Number.isNaN(dt.getTime())) preferredDate = dt.toISOString();
+      }
+    }
+
+    const body: Record<string, string | undefined> = {
+      name: formData.name,
+      phone: formData.phone,
+      subject: formData.concern,
+      source:
+        department === Department.CARDIOLOGY
+          ? 'Cardiology'
+          : department === Department.DERMATOLOGY
+            ? 'Dermatology'
+            : 'General',
+    };
+    if (preferredDate) body.preferredDate = preferredDate;
 
     try {
       const response = await fetch('/api/contacts', {
@@ -39,14 +67,10 @@ export const ContactForm: React.FC<ContactFormProps> = ({ department, options, o
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          name: formData.name,
-          phone: formData.phone,
-          subject: formData.concern,
-          preferredDate: formData.date ? new Date(formData.date) : undefined,
-          source: department === Department.CARDIOLOGY ? 'Cardiology' : department === Department.DERMATOLOGY ? 'Dermatology' : 'General'
-        })
+        body: JSON.stringify(body)
       });
+
+      const data = await response.json().catch(() => ({}));
 
       if (response.ok) {
         setFormState('success');
@@ -57,11 +81,14 @@ export const ContactForm: React.FC<ContactFormProps> = ({ department, options, o
           concern: ''
         });
       } else {
-        console.error('Submission failed');
+        const msg = contactSubmitUserMessage(response.status, typeof data.message === 'string' ? data.message : undefined);
+        console.error('Submission failed', response.status, data);
+        setSubmitError(msg);
         setFormState('error');
       }
     } catch (error) {
       console.error('Error submitting form:', error);
+      setSubmitError(contactSubmitUserMessage(0));
       setFormState('error');
     }
   };
@@ -225,7 +252,10 @@ export const ContactForm: React.FC<ContactFormProps> = ({ department, options, o
                     </p>
                     <Button
                       variant="outline"
-                      onClick={() => setFormState('idle')}
+                      onClick={() => {
+                        setFormState('idle');
+                        setSubmitError('');
+                      }}
                     >
                       Book Another Appointment
                     </Button>
@@ -242,7 +272,9 @@ export const ContactForm: React.FC<ContactFormProps> = ({ department, options, o
                     <div className="mb-8">
                       <h3 className="text-2xl font-bold text-gray-900">Request Appointment</h3>
                       <p className="text-gray-500 text-sm mt-1">Fill out the form below and we'll get back to you.</p>
-                      {formState === 'error' && <p className="text-red-500 text-sm mt-2">Submission failed</p>}
+                      {formState === 'error' && submitError && (
+                        <p className="text-red-600 text-sm mt-3 leading-relaxed">{submitError}</p>
+                      )}
                     </div>
 
                     <div className="space-y-2">

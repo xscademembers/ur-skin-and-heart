@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Phone, Mail, MapPin, Send, ArrowRight, Instagram, Facebook, Youtube, CheckCircle2 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
+import { contactSubmitUserMessage } from '../contactSubmitMessage';
 
 export const ContactPage: React.FC = () => {
     const [formStatus, setFormStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+    const [formErrorMsg, setFormErrorMsg] = useState('');
     const [formData, setFormData] = useState({
         firstName: '',
         lastName: '',
@@ -24,6 +26,7 @@ export const ContactPage: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setFormStatus('submitting');
+        setFormErrorMsg('');
 
         try {
             const response = await fetch('/api/contacts', {
@@ -41,6 +44,8 @@ export const ContactPage: React.FC = () => {
                 })
             });
 
+            const data = await response.json().catch(() => ({}));
+
             if (response.ok) {
                 setFormStatus('success');
                 setFormData({
@@ -52,10 +57,17 @@ export const ContactPage: React.FC = () => {
                     message: ''
                 });
             } else {
+                const msg = contactSubmitUserMessage(
+                    response.status,
+                    typeof data.message === 'string' ? data.message : undefined
+                );
+                console.error('Contact page submit failed', response.status, data);
+                setFormErrorMsg(msg);
                 setFormStatus('error');
             }
         } catch (error) {
             console.error('Error submitting form:', error);
+            setFormErrorMsg(contactSubmitUserMessage(0));
             setFormStatus('error');
         }
     };
@@ -211,15 +223,15 @@ export const ContactPage: React.FC = () => {
                                     </div>
                                     <h3 className="text-3xl font-bold text-brand-blue mb-2">Message Sent!</h3>
                                     <p className="text-gray-500 mb-8 max-w-xs">We'll get back to you within 24 hours.</p>
-                                    <Button onClick={() => setFormStatus('idle')} variant="outline">
+                                    <Button onClick={() => { setFormStatus('idle'); setFormErrorMsg(''); }} variant="outline">
                                         Send Another
                                     </Button>
                                 </div>
                             ) : (
                                 <form onSubmit={handleSubmit} className="space-y-8">
-                                    {formStatus === 'error' && (
-                                        <div className="p-4 bg-red-50 text-red-600 rounded-xl text-center">
-                                            Something went wrong. Please try again.
+                                    {formStatus === 'error' && formErrorMsg && (
+                                        <div className="p-4 bg-red-50 text-red-700 rounded-xl text-left text-sm leading-relaxed">
+                                            {formErrorMsg}
                                         </div>
                                     )}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
