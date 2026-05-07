@@ -15,6 +15,10 @@ const blogSchema = new mongoose.Schema({
         type: String,
         trim: true
     },
+    contentHtml: {
+        type: String,
+        trim: true
+    },
     author: {
         type: String,
         required: true,
@@ -25,10 +29,17 @@ const blogSchema = new mongoose.Schema({
         required: true,
         trim: true
     },
+    postId: {
+        type: String,
+        trim: true
+    },
     imageUrl: {
         type: String,
         trim: true,
         default: 'https://picsum.photos/800/600?random=1'
+    },
+    updatedAt: {
+        type: Date,
     },
     createdAt: {
         type: Date,
@@ -36,4 +47,4 @@ const blogSchema = new mongoose.Schema({
     }
 });
 
-export const Blog = mongoose.model('Blog', blogSchema);
+export const Blog = mongoose.models.Blog || mongoose.model('Blog', blogSchema);

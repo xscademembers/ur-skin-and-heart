@@ -76,9 +76,16 @@ export const AdminDashboard: React.FC = () => {
     const fetchContacts = async () => {
         try {
             const response = await fetch('/api/contacts');
-            const data = await response.json();
-            if (data.success) {
+            const data = await response.json().catch(() => ({}));
+            if (response.ok && data.success && Array.isArray(data.data)) {
                 setContacts(data.data);
+            } else {
+                setError(
+                    (prev) =>
+                        prev ||
+                        (typeof data.message === 'string' && data.message) ||
+                        `Contacts could not be loaded (HTTP ${response.status}).`
+                );
             }
         } catch (err) {
             setError('Error connecting to server');
@@ -90,24 +97,40 @@ export const AdminDashboard: React.FC = () => {
     const fetchBlogs = async () => {
         try {
             const response = await fetch('/api/blogs');
-            const data = await response.json();
-            if (data.success) {
+            const data = await response.json().catch(() => ({}));
+            if (response.ok && data.success && Array.isArray(data.data)) {
                 setBlogs(data.data);
+            } else {
+                setError(
+                    (prev) =>
+                        prev ||
+                        (typeof data.message === 'string' && data.message) ||
+                        `Blogs could not be loaded (HTTP ${response.status}).`
+                );
             }
         } catch (err) {
             console.error('Error fetching blogs:', err);
+            setError((prev) => prev || 'Error loading blogs.');
         }
     };
 
     const fetchGallery = async () => {
         try {
             const response = await fetch('/api/gallery');
-            const data = await response.json();
-            if (data.success) {
+            const data = await response.json().catch(() => ({}));
+            if (response.ok && data.success && Array.isArray(data.data)) {
                 setGallery(data.data);
+            } else {
+                setError(
+                    (prev) =>
+                        prev ||
+                        (typeof data.message === 'string' && data.message) ||
+                        `Gallery could not be loaded (HTTP ${response.status}).`
+                );
             }
         } catch (err) {
             console.error('Error fetching gallery:', err);
+            setError((prev) => prev || 'Error loading gallery.');
         }
     };
 
